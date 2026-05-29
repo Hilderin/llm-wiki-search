@@ -61,6 +61,8 @@ Add to your `opencode.json`:
 
 > Requires `uv pip install -e tools/wiki-search-mcp` to be run first so `uv run` can find the package.
 
+Make sure to add `.wiki-index/` to your project's `.gitignore` so the SQLite index is not committed.
+
 ## Documentation
 
 Full docs: [tools/wiki-search-mcp/README.md](tools/wiki-search-mcp/README.md)
