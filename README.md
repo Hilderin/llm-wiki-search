@@ -46,11 +46,19 @@ Add to your `opencode.json`:
   "mcp": {
     "wiki": {
       "type": "local",
-      "command": ["uv", "run", "python", "-m", "wiki_search_mcp.server"],
+      "command": [
+        "uv",
+        "run",
+        "--project",
+        "../llm-wiki-search/tools/wiki-search-mcp",
+        "python",
+        "-m",
+        "wiki_search_mcp.server"
+      ],
       "enabled": true,
       "environment": {
-        "WIKI_ROOT": "./docs/wiki",
-        "WIKI_INDEX": "./.wiki-index/wiki.sqlite",
+        "WIKI_ROOT": "[PATH TO YOUR WIKI]",
+        "WIKI_INDEX": "[PATH TO YOUR WIKI INDEX, ex: /.wiki-index/wiki.sqlite]",
         "WIKI_WATCH": "true",
         "WIKI_REINDEX_ON_START": "true"
       }
