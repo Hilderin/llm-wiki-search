@@ -71,10 +71,6 @@ Add to your `opencode.json`:
 
 Make sure to add `.wiki-index/` to your project's `.gitignore` so the SQLite index is not committed.
 
-## Documentation
-
-Full docs: [tools/wiki-search-mcp/README.md](tools/wiki-search-mcp/README.md)
-
 ---
 
 *Built with curiosity, Python and a lot of AI.*
