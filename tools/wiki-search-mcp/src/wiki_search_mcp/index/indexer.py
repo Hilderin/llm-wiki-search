@@ -1,4 +1,5 @@
 import hashlib
+from datetime import datetime
 from pathlib import Path
 
 from ..config import WikiSearchConfig
@@ -12,6 +13,17 @@ class Indexer:
         self.config = config
         self.doc_repo = DocumentRepository(db)
         self.chunk_repo = ChunkRepository(db)
+        self._log_path = config.index_path.parent / "wiki.indexation.log"
+        config.index_path.parent.mkdir(parents=True, exist_ok=True)
+        self._log("STARTUP", f"Indexer initialized (wiki_root={config.wiki_root})")
+
+    def _log(self, level: str, message: str) -> None:
+        try:
+            ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+            with open(self._log_path, "a", encoding="utf-8") as f:
+                f.write(f"{ts} | {level:7s} | {message}\n")
+        except OSError:
+            pass
 
     def index_file(self, filepath: Path) -> bool:
         rel = filepath.relative_to(self.config.wiki_root)
@@ -24,7 +36,10 @@ class Indexer:
 
         existing = self.doc_repo.get_document_by_path(path_str)
         if existing and existing["hash"] == content_hash:
+            self._log("UP-TO-DATE", str(rel))
             return False
+
+        self._log("INDEXING", str(rel))
 
         title = _extract_title(content, path_str)
 
@@ -45,6 +60,7 @@ class Indexer:
             )
 
         conn.commit()
+        self._log("INDEXED", str(rel))
         return True
 
     def delete_file(self, filepath: Path) -> None:
@@ -56,12 +72,15 @@ class Indexer:
         conn = self.db.conn
         self.doc_repo.delete_document(path_str)
         conn.commit()
+        self._log("DELETED", str(rel))
 
     def reindex_changed_only(self) -> int:
         wiki_root = self.config.wiki_root
         if not wiki_root.exists():
+            self._log("STARTUP", "Wiki root does not exist, skipping reindex")
             return 0
 
+        self._log("REINDEX", "Starting changed-only reindex")
         md_files = sorted(wiki_root.rglob("*.md"))
         count = 0
         for filepath in md_files:
@@ -71,18 +90,23 @@ class Indexer:
         indexed_paths = {str(f.relative_to(wiki_root)) for f in md_files}
         for doc in self.doc_repo.get_all_documents():
             if doc["path"] not in indexed_paths:
+                self._log("STALE", f"Removing stale document: {doc['path']}")
                 self.doc_repo.delete_document(doc["path"])
 
         self.db.conn.commit()
+        self._log("REINDEX", f"Completed: {len(md_files)} files scanned, {count} reindexed")
         return count
 
     def rebuild(self) -> int:
+        self._log("REBUILD", "Starting full rebuild")
         conn = self.db.conn
         conn.execute("DELETE FROM chunks_fts")
         conn.execute("DELETE FROM chunks")
         conn.execute("DELETE FROM documents")
         conn.commit()
-        return self.reindex_changed_only()
+        result = self.reindex_changed_only()
+        self._log("REBUILD", f"Full rebuild complete: {result} files indexed")
+        return result
 
 
 def _extract_title(content: str, fallback: str) -> str:
